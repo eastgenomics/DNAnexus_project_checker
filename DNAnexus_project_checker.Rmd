@@ -1,0 +1,326 @@
+---
+title: "EGLH DNAnexus Project Overview"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(ggplot2)
+library(plotly)
+library(dplyr)
+library(reshape2)
+library(tidyr)
+library(DT)
+
+source("functions.R")
+```
+
+```{r}
+###### 004
+# created date
+created_date_004 <- read.csv("~/Documents/Training/portfolio/audit/004_created_metadata.tsv", sep = "", header = F)
+created_date_004_df <- clean_created_date(created_date_004)
+rm(created_date_004)
+# modified date
+modified_date_004 <- read.csv("~/Documents/Training/portfolio/audit/004_lastmodified_metadata.tsv", sep = "", header = F)
+modified_date_004_df <- clean_modified_date(modified_date_004)
+rm(modified_date_004)
+#storage cost
+storage_cost_004 <- read.csv("~/Documents/Training/portfolio/audit/004_storagecost_metadata.tsv", sep = "", header = F)
+storage_cost_004_df <- clean_storage_cost(storage_cost_004)
+rm(storage_cost_004)
+all_004 <- merge_all(created_date_004_df, modified_date_004_df, storage_cost_004_df)
+
+###### 003
+# created date
+created_date_003 <- read.csv("~/Documents/Training/portfolio/audit/003_created_metadata.tsv", sep = "", header = F)
+created_date_003_df <- clean_created_date(created_date_003)
+rm(created_date_003)
+# modified date
+modified_date_003 <- read.csv("~/Documents/Training/portfolio/audit/003_lastmodified_metadata.tsv", sep = "", header = F)
+modified_date_003_df <- clean_modified_date(modified_date_003)
+rm(modified_date_003)
+#storage cost
+storage_cost_003 <- read.csv("~/Documents/Training/portfolio/audit/003_storagecost_metadata.tsv", sep = "", header = F)
+storage_cost_003_df <- clean_storage_cost(storage_cost_003)
+rm(storage_cost_003)
+all_003 <- merge_all(created_date_003_df, modified_date_003_df, storage_cost_003_df)
+
+###### 002
+# created date
+created_date_002 <- read.csv("~/Documents/Training/portfolio/audit/002_created_metadata.tsv", sep = "", header = F)
+created_date_002_df <- clean_created_date(created_date_002)
+rm(created_date_002)
+# modified date
+modified_date_002 <- read.csv("~/Documents/Training/portfolio/audit/002_lastmodified_metadata.tsv", sep = "", header = F)
+modified_date_002_df <- clean_modified_date(modified_date_002)
+rm(modified_date_002)
+#storage cost
+storage_cost_002 <- read.csv("~/Documents/Training/portfolio/audit/002_storagecost_metadata.tsv", sep = "", header = F)
+storage_cost_002_df <- clean_storage_cost(storage_cost_002)
+rm(storage_cost_002)
+all_002 <- merge_all(created_date_002_df, modified_date_002_df, storage_cost_002_df)
+
+
+all <- rbind(all_002, all_003,all_004)
+```
+
+<span style="font-size: small;"> Version 1.0 </span>
+
+Project Overview 
+=========================================================
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+### Number of days between creation and modication of projects
+
+```{r}
+p = ggplot(all) +
+  geom_histogram(aes(x = date_diff, text=project_name, fill = project_type), bins=70) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1),
+        plot.title = element_text(hjust = 0.5)) +
+  labs(x = "", title = "Number of days between date of creation and date of modification") +
+  facet_grid(rows = vars(project_type))
+
+ggplotly(p)
+```
+
+### Types of projects created over time
+
+
+```{r}
+all$project_assay <- gsub('.*\\_','',all$project_name)
+all_projects <- all
+all_projects$created_date_MY <- as.Date(paste(all_projects$created_date_MY, "01"), "%Y %b %d")
+
+p = ggplot(all_projects, aes(x=created_date_MY, fill = project_type)) +
+  geom_histogram(binwidth = 30) +
+  scale_x_date(date_breaks = "months" , date_labels = "%b-%y") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1),
+        plot.title = element_text(hjust = 0.5)) +
+  labs(x = "", y = "Count", title = "Number of projects created per month") 
+
+ggplotly(p)
+```
+
+### Types of asssay projects created over time
+
+
+```{r}
+all$project_assay <- gsub('.*\\_','',all$project_name)
+all_simple_002 <- all[which(all$project_type == "002"),]
+all_simple_002$created_date_MY <- as.Date(paste(all_simple_002$created_date_MY, "01"), "%Y %b %d")
+
+## need to categorise other projects as other
+all_simple_002$project_assay_sorted <- all_simple_002$project_assay
+all_simple_002$project_assay_sorted[! all_simple_002$project_assay_sorted %in% c("CP", "TSOE", "clinicalgenetics", 
+                                                                              "MYE", "FH", "TWE", "CEN", 
+                                                                              "SNP", "TSO500", "canrisk")] <- "Others"
+
+p = ggplot(all_simple_002, aes(x=created_date_MY, fill = project_assay_sorted, colour = "black")) +
+  geom_histogram(binwidth = 30) +
+  scale_x_date(date_breaks = "months" , date_labels = "%b-%y") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1),
+        plot.title = element_text(hjust = 0.5)) +
+  labs(x = "", y = "Count", title = "Number of 002 projects created per month") +
+  guides(colour="none")
+
+ggplotly(p)
+```
+
+
+
+
+Storage Overview 
+=========================================================
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+
+### Storage cost of projects over time
+
+```{r}
+p <- ggplot(all, aes(x=created_date, y=storage_cost)) +
+  geom_bar(stat='identity',width=4, aes(text=project_name, fill = project_type)) +
+  scale_x_date(date_breaks = "months" , date_labels = "%b-%y") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1)) +
+  labs(x = "", y = "Storage cost ($)", title = "Storage of projects based on created date") +
+  guides(fill="none")
+
+ggplotly(p)
+```
+
+### Cumulative storage over time
+
+```{r}
+all2 <- all[complete.cases(all), ]
+all2 <- all2 %>% 
+  group_by(created_date_MY) %>% 
+  summarise(storage_month = sum(storage_cost))
+
+all2$created_date_MY <- as.Date(paste(all2$created_date_MY, "01"), "%Y %b %d")
+all2 <- all2[order(all2$created_date_MY),]
+all2$storage_month_cumulative <- cumsum(all2$storage_month)
+
+p = ggplot(all2, aes(x=created_date_MY, y=storage_month_cumulative)) +
+  geom_line()+
+  geom_point() +
+  scale_x_date(date_breaks = "months" , date_labels = "%b-%y") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1)) +
+  labs(x = "", y = "Storage cost ($)", title = "Cumulative cost of storage over time") +
+  guides(fill="none")
+
+ggplotly(p)
+```
+
+
+### Cumulative storage over time (project type)
+
+```{r}
+all_simple <- all[,c("project_name", "project_type", "created_date_MY", "storage_cost")]
+all_simple <- all_simple[complete.cases(all_simple), ]
+
+all_sum_storage_002 <- all_simple %>%
+  filter(project_type == "002") %>%
+  group_by(created_date_MY) %>%
+  summarise(sum_storage = sum(storage_cost)) %>%
+  mutate(project_type=rep("002"))
+all_sum_storage_002$created_date_MY <- as.Date(paste(all_sum_storage_002$created_date_MY, "01"), "%Y %b %d")
+all_sum_storage_002 <- all_sum_storage_002[order(all_sum_storage_002$created_date_MY),]
+all_sum_storage_002$storage_month_cumulative <- cumsum(all_sum_storage_002$sum_storage)
+
+all_sum_storage_003 <- all_simple %>%
+  filter(project_type == "003") %>%
+  group_by(created_date_MY) %>%
+  summarise(sum_storage = sum(storage_cost)) %>%
+  mutate(project_type=rep("003"))
+all_sum_storage_003$created_date_MY <- as.Date(paste(all_sum_storage_003$created_date_MY, "01"), "%Y %b %d")
+all_sum_storage_003 <- all_sum_storage_003[order(all_sum_storage_003$created_date_MY),]
+all_sum_storage_003$storage_month_cumulative <- cumsum(all_sum_storage_003$sum_storage)
+
+all_sum_storage_004 <- all_simple %>%
+  filter(project_type == "004") %>%
+  group_by(created_date_MY) %>%
+  summarise(sum_storage = sum(storage_cost)) %>%
+  mutate(project_type=rep("004"))
+all_sum_storage_004$created_date_MY <- as.Date(paste(all_sum_storage_004$created_date_MY, "01"), "%Y %b %d")
+all_sum_storage_004 <- all_sum_storage_004[order(all_sum_storage_004$created_date_MY),]
+all_sum_storage_004$storage_month_cumulative <- cumsum(all_sum_storage_004$sum_storage)
+
+all_sum_storage <- rbind(all_sum_storage_002, all_sum_storage_003, all_sum_storage_004)
+
+p = ggplot(all_sum_storage, aes(x=created_date_MY, y=storage_month_cumulative, color = project_type)) +
+  geom_line()+
+  geom_point() +
+  scale_x_date(date_breaks = "months" , date_labels = "%b-%y") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1),
+        plot.title = element_text(hjust = 0.5)) +
+  labs(x = "", y = "Storage cost ($)", title = "Cumulative storage over time per project type") +
+  guides(fill="none")
+
+ggplotly(p)
+```
+
+Archival Status Overview 
+=========================================================
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+
+### Archival status for CEN projects across time
+
+```{r}
+# read data in by looping though each file in the directory
+mydir = "~/Documents/Training/portfolio/audit"
+total_files =  list.files(path = mydir, pattern= ("*status.txt"))
+dat <- matrix(NA, nrow = 0, ncol=2)
+for(file in total_files) {
+  filename <- strsplit(file, "_file_status.txt") #removes the .table from filename
+  file_df <- read.csv(paste(mydir, file, sep="/"), header = F) #read in the file as a dataframe
+  filename <- filename[[1]] #get the dataframe from the list
+  file_df$runfolder <- rep(filename, nrow(file_df))
+  dat <- rbind(dat, file_df)
+  assign(filename, file_df) #assigns the filename to the object file_df which is the dataframe
+  filename <- NULL
+  file_df <- NULL}
+
+colnames(dat) <- c("archival_status", "runfolder")
+
+## read in the tags
+tag_002 <- read.csv("~/Documents/Training/portfolio/audit/002_tags.tsv", sep = "", header = F)
+colnames(tag_002) <- c("project_name", "tag")
+tag_002$assay <- gsub('.*\\_','',tag_002$project_name)
+tag_002_CEN <- tag_002[which(tag_002$assay %in% "CEN"),]
+dat$tag <- rep(NA, nrow(dat))
+dat$project_tag <- tag_002_CEN$tag[match( dat$runfolder, tag_002_CEN$project_name)]
+
+##plots!
+p = ggplot(dat, aes(fill=archival_status, x=runfolder, label = project_tag)) + 
+  geom_bar(position="stack", stat="count") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        plot.title = element_text(hjust = 0.5)) +
+  labs(x = "", y = "", title = "Archival status for CEN DNAnexus projects")
+
+ggplotly(p)
+```
+
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+
+### Archival status for files in CEN projects (percentage)
+
+```{r}
+df <- dat %>% 
+  group_by(archival_status) %>% # Variable to be transformed
+  count() %>% 
+  ungroup() %>% 
+  mutate(perc = `n` / sum(`n`)) %>% 
+  arrange(perc) %>%
+  mutate(labels = scales::percent(perc))
+
+ggplot(df, aes(x = "", y = perc, fill = archival_status)) +
+  geom_col() +
+  geom_text(aes(label = labels),
+            position = position_stack(vjust = 0.5)) +
+  coord_polar(theta = "y") +
+  theme_void() +
+  labs(x = "", y = "", title = "Archival status of all CEN DNAnexus project")
+
+
+```
+
+-----------------------------------------------------------------------
+### Table of archival status types in CEN projects
+
+```{r}
+df2 <- dat %>% group_by(runfolder,archival_status) %>% 
+  summarise(total_count=n(),.groups = 'drop') %>%
+  as.data.frame()
+
+df3 <- df2 %>% group_by(runfolder) %>% 
+  summarise(number_of_archival_status = paste(as.character(archival_status), collapse = ",")) %>%
+  as.data.frame()
+
+df3$project_tag <- tag_002_CEN$tag[match(df3$runfolder, tag_002_CEN$project_name)]
+
+colnames(df3) <- c("project_name","number_of_archival_status","project_tag")
+
+datatable(df3, rownames = F)
+
+nrow(df3[which(df3$number_of_archival_status %in% "archived"),])
+```
